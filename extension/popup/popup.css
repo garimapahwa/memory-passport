@@ -1,0 +1,36 @@
+body {
+  width: 320px;
+  font-family: sans-serif;
+  margin: 0;
+  padding: 12px;
+}
+
+h1 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.item {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.item .meta {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.item .text {
+  font-size: 12px;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.item button {
+  font-size: 11px;
+  cursor: pointer;
+}

@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Memory Passport",
+  "version": "0.1.0",
+  "description": "Carries your context between AI chat tools using Cognee's remember/recall memory.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["browser-polyfill.min.js", "background.js"]
+  },
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["browser-polyfill.min.js", "content/common.js", "content/chatgpt.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["browser-polyfill.min.js", "content/common.js", "content/claude.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
