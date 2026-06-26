@@ -38,9 +38,9 @@ Talk to ChatGPT, then open Claude — click the 🪪 badge and it recalls what C
    - `chrome://extensions` (or `edge://extensions`, `brave://extensions`) → enable Developer Mode → "Load unpacked" → select the `extension/` folder.
 
    **Firefox**
-   - `about:debugging#/runtime/this-firefox` → "Load Temporary Add-on" → select `extension/manifest.json`.
-   - Or via CLI: `npx web-ext run --source-dir extension/` (auto-reloads on file changes).
-   - Note: Firefox doesn't yet support `background.service_worker`, so the manifest also declares `background.scripts`, which Firefox uses instead — same `background.js` file, no extra work needed.
+   - Firefox doesn't support `background.service_worker`, and Chrome warns on `background.scripts` under Manifest V3 — so there are two manifest files: `manifest.json` (Chrome/Edge/Brave/Safari) and `manifest.firefox.json` (Firefox). Everything else (`background.js`, content scripts, polyfill) is shared.
+   - Easiest: copy the whole `extension/` folder, then in the copy run `mv manifest.json manifest.chrome.json.bak && mv manifest.firefox.json manifest.json`. Load that copy via `about:debugging#/runtime/this-firefox` → "Load Temporary Add-on" → select its `manifest.json`.
+   - Or via CLI on that same copy: `npx web-ext run --source-dir <copy-dir>/`.
 
    **Safari**
    - Requires full Xcode (not just Command Line Tools) since Safari extensions ship as native app bundles.

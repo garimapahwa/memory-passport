@@ -11,7 +11,7 @@
     "http://localhost:8000/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "scripts": ["browser-polyfill.min.js", "background.js"]
   },
   "action": {
     "default_popup": "popup/popup.html"
@@ -28,5 +28,10 @@
       "js": ["browser-polyfill.min.js", "content/common.js", "content/claude.js"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "memory-passport@hackathon.local"
+    }
+  }
 }
