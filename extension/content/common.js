@@ -28,6 +28,17 @@ function createPassportBadge(toolLabel) {
   return badge;
 }
 
+// Briefly shows a status on the badge, then reverts to the idle label.
+// Clears any pending revert first so rapid actions (e.g. fast typing +
+// Enter) don't fight over the badge text.
+function flashBadge(badge, text, idleText, durationMs = 2000) {
+  clearTimeout(badge._passportRevertTimer);
+  badge.textContent = text;
+  badge._passportRevertTimer = setTimeout(() => {
+    badge.textContent = idleText;
+  }, durationMs);
+}
+
 function getElementText(el) {
   if (!el) return "";
   return el.tagName === "TEXTAREA" ? el.value : el.innerText;
@@ -55,6 +66,7 @@ function initMemoryPassport({ toolLabel, source, findComposer }) {
       console.warn("Memory Passport: couldn't find the chat composer on this page");
       return;
     }
+    const idleText = `🪪 Passport: ${toolLabel}`;
     const draft = getElementText(composer).trim();
     badge.textContent = "🪪 Recalling...";
     try {
@@ -62,15 +74,13 @@ function initMemoryPassport({ toolLabel, source, findComposer }) {
         query: draft || "Summarize everything you know about this user from past conversations: their projects, preferences, and any people they've mentioned.",
       });
       // cognee.recall returns a plain array of result entries, each with a `text` field.
-      const context =
-        Array.isArray(cognee) && cognee.length
-          ? cognee.map((r) => r.text).filter(Boolean).join("\n")
-          : "(no memories stored yet)";
+      const hits = Array.isArray(cognee) ? cognee.filter((r) => r.text) : [];
+      const context = hits.length ? hits.map((r) => r.text).join("\n") : "(no memories stored yet)";
       setElementText(composer, `[Memory Passport context: ${context}]\n\n${draft}`);
+      flashBadge(badge, hits.length ? `✅ Injected ${hits.length} memor${hits.length === 1 ? "y" : "ies"}` : "🪪 Nothing remembered yet", idleText);
     } catch (err) {
       console.error("Memory Passport recall failed", err);
-    } finally {
-      badge.textContent = `🪪 Passport: ${toolLabel}`;
+      flashBadge(badge, "⚠️ Recall failed (see console)", idleText, 3000);
     }
   });
 
@@ -81,11 +91,15 @@ function initMemoryPassport({ toolLabel, source, findComposer }) {
       if (e.key !== "Enter" || e.shiftKey) return;
       const composer = findComposer();
       const text = getElementText(composer).trim();
-      if (text) {
-        sendToBackground("remember", { text, source, category: "conversation" }).catch((err) =>
-          console.error("Memory Passport remember failed", err)
-        );
-      }
+      if (!text) return;
+      const idleText = `🪪 Passport: ${toolLabel}`;
+      flashBadge(badge, "🪪 Remembering...", idleText, 15000);
+      sendToBackground("remember", { text, source, category: "conversation" })
+        .then(() => flashBadge(badge, "✅ Remembered", idleText))
+        .catch((err) => {
+          console.error("Memory Passport remember failed", err);
+          flashBadge(badge, "⚠️ Remember failed (see console)", idleText, 3000);
+        });
     },
     true
   );
