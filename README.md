@@ -1,8 +1,21 @@
 # Memory Passport
 
-A portable context layer that follows you between AI chat tools, built on Cognee Cloud's `remember()` / `recall()` / `improve()` / `forget()` memory API.
+*Your AI woke up with no memory of last night. This gives it one.*
+
+Built for WeMakeDevs' **"The Hangover Part AI: Where's My Context?"** hackathon, on [Cognee](https://www.cognee.ai/)'s hybrid graph-vector memory layer.
+
+Every AI chat tool forgets you the second you close the tab. Explain your project to ChatGPT, switch to Claude for a second opinion, and you're re-introducing yourself from scratch — every single time. Memory Passport is a portable context layer that follows you between AI tools, built on Cognee's `remember()` / `recall()` / `improve()` / `forget()` memory API.
 
 Talk to ChatGPT, then open Claude — click the 🪪 badge and it recalls what Cognee knows about you from the *other* tool and injects it into the message before you send it. No more re-explaining yourself to every AI app.
+
+**See [BLOG.md](BLOG.md) for the build story** — including the undocumented auth header, the tenant-provisioning gotcha, the architecture mistake that quietly wrecked recall quality, and a real platform bug we found and [filed upstream](https://github.com/topoteretes/cognee/issues/3526).
+
+<!--
+TODO before submitting: drop a screenshot or short GIF here showing the
+🪪 badge live on chatgpt.com/claude.ai with a real recall in action.
+Needs an authenticated browser session, so this has to be captured by
+hand rather than generated -- e.g. `![demo](docs/demo.gif)`.
+-->
 
 ## How it works
 
