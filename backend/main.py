@@ -30,9 +30,6 @@ class RememberRequest(BaseModel):
 
 class RecallRequest(BaseModel):
     query: str
-    datasets: Optional[list[str]] = None
-    categories: Optional[list[str]] = None
-    sources: Optional[list[str]] = None
     top_k: int = 10
 
 
@@ -44,25 +41,23 @@ class ForgetRequest(BaseModel):
 async def api_remember(req: RememberRequest):
     item = ledger.add_item(text=req.text, source=req.source, category=req.category)
     result = await cognee_client.remember(req.text, dataset_name=item["dataset"])
-    return {"item": item, "cognee": result}
+    data_id = await cognee_client.newest_data_id(result["dataset_id"]) if result.get("dataset_id") else None
+    ledger.set_data_id(item["id"], data_id)
+    return {"item": {**item, "data_id": data_id}, "cognee": result}
 
 
 @app.post("/api/recall")
 async def api_recall(req: RecallRequest):
-    datasets = req.datasets or ledger.datasets_for(categories=req.categories, sources=req.sources)
-    if not datasets:
-        return {"results": [], "datasets_used": [], "note": "nothing remembered yet"}
-    result = await cognee_client.recall(req.query, datasets=datasets, top_k=req.top_k)
-    return {"cognee": result, "datasets_used": datasets}  # cognee.recall returns a plain list
+    if not ledger.has_items():
+        return {"results": [], "note": "nothing remembered yet"}
+    result = await cognee_client.recall(req.query, datasets=[ledger.PASSPORT_DATASET], top_k=req.top_k)
+    return {"cognee": result}  # cognee.recall returns a plain list
 
 
 @app.post("/api/improve")
-async def api_improve(dataset: str = "all"):
-    datasets = ledger.datasets_for() if dataset == "all" else [dataset]
-    results = []
-    for ds in datasets:
-        results.append(await cognee_client.improve(dataset_name=ds))
-    return {"improved": datasets, "cognee": results}
+async def api_improve():
+    result = await cognee_client.improve(dataset_name=ledger.PASSPORT_DATASET)
+    return {"improved": ledger.PASSPORT_DATASET, "cognee": result}
 
 
 @app.get("/api/passport")
@@ -75,6 +70,11 @@ async def api_forget(req: ForgetRequest):
     item = ledger.get_item(req.item_id)
     if not item:
         raise HTTPException(404, "item not found")
-    result = await cognee_client.forget(dataset=item["dataset"], memory_only=True)
+    result = await cognee_client.forget(dataset=item["dataset"], data_id=item.get("data_id"), memory_only=False)
+    # Best-effort: re-cognify so the graph reflects the deletion. In testing
+    # this reliably removes the item from the raw data list and the graph
+    # endpoint, but recall's search layer can still surface the forgotten
+    # fact for a while afterward -- see README's known gaps.
+    await cognee_client.improve(dataset_name=item["dataset"])
     ledger.remove_item(req.item_id)
     return {"status": "forgotten", "item_id": req.item_id, "cognee": result}

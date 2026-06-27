@@ -59,7 +59,7 @@ function initMemoryPassport({ toolLabel, source, findComposer }) {
     badge.textContent = "🪪 Recalling...";
     try {
       const { cognee } = await sendToBackground("recall", {
-        query: draft || "What should I know about this person before responding?",
+        query: draft || "Summarize everything you know about this user from past conversations: their projects, preferences, and any people they've mentioned.",
       });
       // cognee.recall returns a plain array of result entries, each with a `text` field.
       const context =

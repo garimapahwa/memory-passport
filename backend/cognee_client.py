@@ -10,6 +10,8 @@ Verified against the real OpenAPI spec served at
   enrichment step (it's what builds/rebuilds the knowledge graph for a
   dataset), so `improve()` below calls that.
 """
+from __future__ import annotations
+
 import os
 
 import httpx
@@ -39,6 +41,21 @@ async def remember(text: str, dataset_name: str) -> dict:
         return resp.json()
 
 
+async def newest_data_id(dataset_id: str) -> str | None:
+    """The `items` list in remember()'s response is the whole dataset, not
+    just what was just added, and isn't reliably ordered -- so to know which
+    data_id is the new one, ask for the dataset's data list (which has real
+    timestamps) and take the most recently created record.
+    """
+    async with _client() as client:
+        resp = await client.get(f"/api/v1/datasets/{dataset_id}/data")
+        resp.raise_for_status()
+        records = resp.json()
+        if not records:
+            return None
+        return max(records, key=lambda r: r["createdAt"])["id"]
+
+
 async def recall(query: str, datasets: list[str], search_type: str = "GRAPH_COMPLETION", top_k: int = 10) -> list[dict]:
     async with _client() as client:
         resp = await client.post(
@@ -59,11 +76,11 @@ async def improve(dataset_name: str, run_in_background: bool = False) -> dict:
         return resp.json()
 
 
-async def forget(dataset: str, memory_only: bool = True) -> dict:
+async def forget(dataset: str, data_id: str | None = None, memory_only: bool = True) -> dict:
+    payload = {"dataset": dataset, "memoryOnly": memory_only}
+    if data_id:
+        payload["dataId"] = data_id
     async with _client() as client:
-        resp = await client.post(
-            "/api/v1/forget",
-            json={"dataset": dataset, "memoryOnly": memory_only},
-        )
+        resp = await client.post("/api/v1/forget", json=payload)
         resp.raise_for_status()
         return resp.json()
