@@ -43,4 +43,19 @@ async function render() {
   }
 }
 
+document.getElementById("improve").addEventListener("click", async (e) => {
+  const status = document.getElementById("improveStatus");
+  e.target.disabled = true;
+  status.textContent = "Re-cognifying the graph...";
+  try {
+    await sendToBackground("improve", {});
+    status.textContent = "✅ Memory strengthened.";
+  } catch (err) {
+    status.textContent = `Error: ${err.message}`;
+  } finally {
+    e.target.disabled = false;
+    setTimeout(() => (status.textContent = ""), 3000);
+  }
+});
+
 render();

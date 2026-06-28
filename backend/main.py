@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -11,6 +12,14 @@ import cognee_client  # noqa: E402  (must load env first)
 import ledger  # noqa: E402
 
 app = FastAPI(title="Memory Passport Backend")
+
+# remember/forget/improve all mutate the one shared dataset (cognify runs,
+# data deletes). Cognee's backend got visibly unstable under concurrent
+# mutations on the same dataset during testing (a rapid delete+recreate
+# left a dataset permanently stuck in an error state) -- so serialize
+# anything that touches the dataset rather than risk two requests racing
+# each other server-side. Recall is read-only and left unlocked.
+cognee_write_lock = asyncio.Lock()
 
 # Extension calls this from a chrome-extension:// origin -- permissive CORS is
 # fine for a local hackathon demo, tighten before any real deployment.
@@ -40,8 +49,9 @@ class ForgetRequest(BaseModel):
 @app.post("/api/remember")
 async def api_remember(req: RememberRequest):
     item = ledger.add_item(text=req.text, source=req.source, category=req.category)
-    result = await cognee_client.remember(req.text, dataset_name=item["dataset"])
-    data_id = await cognee_client.newest_data_id(result["dataset_id"]) if result.get("dataset_id") else None
+    async with cognee_write_lock:
+        result = await cognee_client.remember(req.text, dataset_name=item["dataset"])
+        data_id = await cognee_client.newest_data_id(result["dataset_id"]) if result.get("dataset_id") else None
     ledger.set_data_id(item["id"], data_id)
     return {"item": {**item, "data_id": data_id}, "cognee": result}
 
@@ -56,7 +66,8 @@ async def api_recall(req: RecallRequest):
 
 @app.post("/api/improve")
 async def api_improve():
-    result = await cognee_client.improve(dataset_name=ledger.PASSPORT_DATASET)
+    async with cognee_write_lock:
+        result = await cognee_client.improve(dataset_name=ledger.PASSPORT_DATASET)
     return {"improved": ledger.PASSPORT_DATASET, "cognee": result}
 
 
@@ -70,11 +81,12 @@ async def api_forget(req: ForgetRequest):
     item = ledger.get_item(req.item_id)
     if not item:
         raise HTTPException(404, "item not found")
-    result = await cognee_client.forget(dataset=item["dataset"], data_id=item.get("data_id"), memory_only=False)
-    # Best-effort: re-cognify so the graph reflects the deletion. In testing
-    # this reliably removes the item from the raw data list and the graph
-    # endpoint, but recall's search layer can still surface the forgotten
-    # fact for a while afterward -- see README's known gaps.
-    await cognee_client.improve(dataset_name=item["dataset"])
+    async with cognee_write_lock:
+        result = await cognee_client.forget(dataset=item["dataset"], data_id=item.get("data_id"), memory_only=False)
+        # Best-effort: re-cognify so the graph reflects the deletion. In testing
+        # this reliably removes the item from the raw data list and the graph
+        # endpoint, but recall's search layer can still surface the forgotten
+        # fact for a while afterward -- see README's known gaps.
+        await cognee_client.improve(dataset_name=item["dataset"])
     ledger.remove_item(req.item_id)
     return {"status": "forgotten", "item_id": req.item_id, "cognee": result}
